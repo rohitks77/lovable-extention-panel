@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { ShieldCheck, Lock, Eye, EyeOff, Zap } from 'lucide-react'
 
-const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'merotools@admin2024'
+const ENV_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'merotools@admin2024'
+const PW_STORAGE_KEY = 'mt_admin_pw_override'
 
 interface LoginProps {
   onLogin: () => void
@@ -18,7 +19,8 @@ export default function Login({ onLogin }: LoginProps) {
     setLoading(true)
     setError('')
     await new Promise(r => setTimeout(r, 600))
-    if (password === ADMIN_PASSWORD) {
+    const currentPassword = localStorage.getItem(PW_STORAGE_KEY) || ENV_PASSWORD
+    if (password === currentPassword) {
       localStorage.setItem('mt_admin_auth', 'true')
       onLogin()
     } else {

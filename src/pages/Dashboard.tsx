@@ -3,8 +3,12 @@ import { supabase, generateKey, calcExpiry, type License, type Plan, type Status
 import {
   Key, Plus, Copy, Check, Trash2, Power, PowerOff,
   RefreshCw, Search, LogOut, ShieldCheck, Clock,
-  Users, Activity, AlertCircle, Globe, Mail, User, FileText, ChevronDown
+  Users, Activity, AlertCircle, Globe, Mail, User, FileText, ChevronDown,
+  Settings, Eye, EyeOff, Lock, X
 } from 'lucide-react'
+
+const ENV_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'merotools@admin2024'
+const PW_STORAGE_KEY = 'mt_admin_pw_override'
 
 // ── helpers ────────────────────────────────────────────────────────────────
 function planLabel(plan: Plan) {
@@ -46,6 +50,104 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
   )
 }
 
+// ── change password modal ──────────────────────────────────────────────────
+function ChangePasswordModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (msg: string) => void }) {
+  const [oldPw, setOldPw] = useState('')
+  const [newPw, setNewPw] = useState('')
+  const [confirmPw, setConfirmPw] = useState('')
+  const [showOld, setShowOld] = useState(false)
+  const [showNew, setShowNew] = useState(false)
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const currentPassword = localStorage.getItem(PW_STORAGE_KEY) || ENV_PASSWORD
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    if (oldPw !== currentPassword) { setError('Current password is incorrect.'); return }
+    if (newPw.length < 8) { setError('New password must be at least 8 characters.'); return }
+    if (newPw !== confirmPw) { setError('New passwords do not match.'); return }
+    setSaving(true)
+    await new Promise(r => setTimeout(r, 400))
+    localStorage.setItem(PW_STORAGE_KEY, newPw)
+    setSaving(false)
+    onSuccess('✅ Password changed successfully!')
+    onClose()
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'
+    }}>
+      <div style={{
+        width: '100%', maxWidth: 420,
+        background: 'var(--bg-card)', border: '1.5px solid var(--border)',
+        borderRadius: 16, padding: '2rem',
+        boxShadow: '0 25px 60px rgba(0,0,0,0.6)',
+        animation: 'fadeIn 0.2s ease'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(99,102,241,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Lock size={15} color="#a5b4fc" />
+            </div>
+            <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Change Password</h2>
+          </div>
+          <button className="copy-btn" onClick={onClose}><X size={18} /></button>
+        </div>
+
+        {error && (
+          <div style={{
+            background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)',
+            borderRadius: 8, padding: '0.6rem 0.9rem',
+            color: '#fca5a5', fontSize: '0.82rem', marginBottom: '1rem',
+            display: 'flex', alignItems: 'center', gap: '0.4rem'
+          }}>
+            <AlertCircle size={13} /> {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          {[
+            { label: 'Current Password', val: oldPw, set: setOldPw, show: showOld, toggle: () => setShowOld(p => !p) },
+            { label: 'New Password', val: newPw, set: setNewPw, show: showNew, toggle: () => setShowNew(p => !p) },
+            { label: 'Confirm New Password', val: confirmPw, set: setConfirmPw, show: showNew, toggle: () => setShowNew(p => !p) },
+          ].map(({ label, val, set, show, toggle }) => (
+            <div className="form-group" key={label}>
+              <label>{label}</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={show ? 'text' : 'password'}
+                  value={val}
+                  onChange={e => { set(e.target.value); setError('') }}
+                  placeholder="••••••••"
+                  required
+                  style={{ paddingRight: '2.5rem' }}
+                />
+                <button type="button" onClick={toggle} className="copy-btn"
+                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)' }}>
+                  {show ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+            <button type="button" className="btn-ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
+            <button type="submit" className="btn-primary" disabled={saving}
+              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+              {saving ? <div className="spin" style={{ width: 15, height: 15, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%' }} /> : <Lock size={14} />}
+              {saving ? 'Saving...' : 'Save Password'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ── main dashboard ──────────────────────────────────────────────────────────
 interface DashboardProps { onLogout: () => void }
 
@@ -60,6 +162,7 @@ export default function Dashboard({ onLogout }: DashboardProps) {
   const [generating, setGenerating] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [toastMsg, setToastMsg] = useState('')
+  const [showChangePw, setShowChangePw] = useState(false)
 
   // Form state
   const [form, setForm] = useState({
@@ -162,6 +265,14 @@ export default function Dashboard({ onLogout }: DashboardProps) {
         </div>
       )}
 
+      {/* Change Password Modal */}
+      {showChangePw && (
+        <ChangePasswordModal
+          onClose={() => setShowChangePw(false)}
+          onSuccess={msg => toast(msg)}
+        />
+      )}
+
       {/* Navbar */}
       <nav style={{
         background: 'var(--bg-card)', borderBottom: '1.5px solid var(--border)',
@@ -190,6 +301,14 @@ export default function Dashboard({ onLogout }: DashboardProps) {
             style={{ padding: '6px' }}
           >
             <RefreshCw size={16} className={refreshing ? 'spin' : ''} />
+          </button>
+          <button
+            className="copy-btn"
+            onClick={() => setShowChangePw(true)}
+            title="Change Password"
+            style={{ padding: '6px' }}
+          >
+            <Settings size={16} />
           </button>
           <button className="btn-ghost" onClick={onLogout} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <LogOut size={15} /> Sign Out
